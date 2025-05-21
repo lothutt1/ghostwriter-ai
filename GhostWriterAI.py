@@ -276,11 +276,17 @@ for i, sec in enumerate(st.session_state.sections):
 
 # === XUẤT TOÀN BỘ ===
 st.markdown("---")
-if st.button("📤 Xuất toàn bộ nội dung"):
+if st.session_state.sections:
     full_text = st.session_state.hook + "\n\n"
     for sec in st.session_state.sections:
         full_text += f"{sec['title']}\n{sec['user_edit']}\n\n"
+
     filename = f"ghostwriter_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(full_text)
-    st.success(f"✅ File đã xuất: {filename}")
+
+    st.download_button(
+        label="📥 Tải toàn bộ nội dung (.txt)",
+        data=full_text,
+        file_name=filename,
+        mime="text/plain"
+    )
+
