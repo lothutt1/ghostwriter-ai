@@ -14,7 +14,8 @@ client = openai.OpenAI()
 st.set_page_config(page_title="GhostWriter AI", layout="wide")
 
 STYLE_SAMPLE_DIR = "my_style_samples"
-model_embed = SentenceTransformer("all-MiniLM-L6-v2")
+model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
+
 
 # === SESSION STATE ===
 if "hook" not in st.session_state:
