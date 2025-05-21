@@ -8,6 +8,8 @@ import trafilatura
 from youtube_transcript_api import YouTubeTranscriptApi
 from googlesearch import search
 from sentence_transformers import SentenceTransformer, util
+import requests
+
 
 # === Cấu hình OpenAI ===
 client = openai.OpenAI()
