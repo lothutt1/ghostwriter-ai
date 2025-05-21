@@ -275,11 +275,15 @@ References:
                 if raw.lower().startswith("json"):
                     raw = raw[4:].strip()
             parsed = json.loads(raw)
+
             st.session_state.hook = parsed.get("hook", "")
-            st.session_state.structure_titles = parsed.get("sections", [])
+            titles = parsed.get("sections", [])
+            st.session_state.structure_titles = [(title, "") for title in titles]  # 👈 CHỈNH Ở ĐÂY
+
         except Exception as e:
             st.error("❌ GPT trả về không đúng JSON hoặc lỗi khi phân tích:")
             st.code(raw)
+
 
 # === SECTION TIÊU ĐỀ ===
 if st.session_state.structure_titles:
