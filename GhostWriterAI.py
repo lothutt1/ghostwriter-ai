@@ -10,7 +10,6 @@ from googlesearch import search
 from sentence_transformers import SentenceTransformer, util
 import requests
 
-
 # === Cấu hình OpenAI ===
 client = openai.OpenAI()
 st.set_page_config(page_title="GhostWriter AI", layout="wide")
@@ -20,9 +19,8 @@ model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
 
 # Lấy API từ Streamlit Secrets hoặc biến môi trường
 openai.api_key = os.getenv("OPENAI_API_KEY")
-tmp_key = os.getenv("tmproxy_api_key")
+tmproxy_api_key = os.getenv("tmproxy_api_key")
 
-# === Thiết lập proxy toàn cục nếu có ===
 # === LẤY PROXY TỪ TMProxy API ===
 def get_tmproxy_url():
     url = "https://tmproxy.com/api/proxy/get-current-proxy"
@@ -35,7 +33,10 @@ def get_tmproxy_url():
         proxy_url = f"http://{info['username']}:{info['password']}@{info['https']}"
         os.environ["HTTP_PROXY"] = proxy_url
         os.environ["HTTPS_PROXY"] = proxy_url
-        return proxy_url
+        return {
+            "http": proxy_url,
+            "https": proxy_url
+        }
     except Exception as e:
         st.warning(f"⚠️ Không thể lấy proxy tự động: {e}")
         return None
