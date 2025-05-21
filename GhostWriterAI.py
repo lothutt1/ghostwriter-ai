@@ -114,26 +114,22 @@ if "search_links" in st.session_state:
 # === LẤY CAPTION YOUTUBE ===
 from urllib.parse import urlparse, parse_qs
 from youtube_transcript_api import YouTubeTranscriptApi
-transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
-
 
 yt_url = st.text_input("Link YouTube")
-tmproxy_api_key = "f9392520fb4446804b14e86a871f0afc"  # bạn có thể thay bằng biến riêng nếu muốn ẩn
 
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]
-        proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
-        proxies = {"http": proxy_url, "https": proxy_url}
+        video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]  # <== dòng thiếu
+        proxies = {"http": proxy_url, "https": proxy_url}              # TMProxy proxy_url lấy ở trên
 
-        transcript = TranscriptApi.get_transcript(video_id, proxies=proxies)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
         full_text = " ".join([x['text'] for x in transcript])
 
         st.session_state.sources.append(f"[YOUTUBE] {full_text}")
         build_reference_vectors()
-        st.success("✅ Đã lấy caption từ YouTube qua TMProxy!")
+        st.success("✅ Đã lấy caption từ YouTube!")
     except Exception as e:
-        st.error(f"❌ Lỗi khi lấy caption qua proxy: {e}")
+        st.error(f"❌ Lỗi lấy caption: {e}")
 
 # === BUILD VECTOR ===
 def build_reference_vectors():
