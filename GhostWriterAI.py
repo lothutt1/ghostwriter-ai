@@ -97,7 +97,7 @@ if style_tone_instruction:
 if st.button("🔎 Tìm link Google"):
     with st.spinner("Đang tìm kiếm trên Google..."):
         try:
-            results = list(search(topic, num_results=10))
+            results = list(search(topic, num_results=25))
             st.session_state.sources = []
             st.session_state.search_links = results
         except Exception as e:
