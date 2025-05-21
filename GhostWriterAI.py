@@ -194,23 +194,26 @@ if st.button("🎬 Lấy caption") and yt_url:
         st.error(f"❌ Lỗi lấy caption: {e}")
 
 
-# === BUILD VECTOR ===
 def build_reference_vectors():
-    chunks = []
+    chunks = set()  # ✅ Tránh trùng đoạn
+
     for src in st.session_state.sources:
-        # Bỏ dòng đầu nếu chứa metadata
+        # Bỏ dòng đầu chứa metadata nếu có
         if src.startswith("[SOURCE:") or src.startswith("[YOUTUBE]"):
             src = "\n".join(src.split("\n")[1:])
 
+        # Chia thành đoạn nhỏ
         paragraphs = src.split("\n")
         for p in paragraphs:
             p = p.strip()
-            if len(p) > 100:
-                chunks.append(p)
+            if 100 < len(p) < 1000:  # ✅ Giới hạn độ dài hợp lý
+                chunks.add(p)
 
+    # Chuyển sang list và encode
     st.session_state.source_vectors = [
         (text, model_embed.encode(text, convert_to_tensor=False)) for text in chunks
     ]
+
 
 def select_relevant_sources(title, top_k=1):
     title_vec = model_embed.encode(title, convert_to_tensor=False)
