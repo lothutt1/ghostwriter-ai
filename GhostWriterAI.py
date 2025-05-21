@@ -5,7 +5,7 @@ import json
 import numpy as np
 from datetime import datetime
 import trafilatura
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from googlesearch import search
 from sentence_transformers import SentenceTransformer, util
 import requests
@@ -23,23 +23,19 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 tmp_key = os.getenv("tmproxy_api_key")
 
 # === Thiết lập proxy toàn cục nếu có ===
+# === LẤY PROXY TỪ TMProxy API ===
 def get_tmproxy_url():
-    api_key = st.secrets["tmproxy_api_key"]  # API key lấy từ secrets.toml
     url = "https://tmproxy.com/api/proxy/get-current-proxy"
-    headers = {
-        "accept": "application/json",
-        "Content-Type": "application/json"
-    }
-    data = {"api_key": api_key}
-    
+    headers = {"Content-Type": "application/json"}
+    data = {"api_key": tmproxy_key}
     try:
         res = requests.post(url, headers=headers, json=data, timeout=10)
         res.raise_for_status()
         info = res.json()["data"]
-        return {
-            "http": f"http://{info['username']}:{info['password']}@{info['https']}",
-            "https": f"http://{info['username']}:{info['password']}@{info['https']}"
-        }
+        proxy_url = f"http://{info['username']}:{info['password']}@{info['https']}"
+        os.environ["HTTP_PROXY"] = proxy_url
+        os.environ["HTTPS_PROXY"] = proxy_url
+        return proxy_url
     except Exception as e:
         st.warning(f"⚠️ Không thể lấy proxy tự động: {e}")
         return None
