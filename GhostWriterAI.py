@@ -27,7 +27,7 @@ tmp_key = os.getenv("tmproxy_api_key")
 def get_tmproxy_url():
     url = "https://tmproxy.com/api/proxy/get-current-proxy"
     headers = {"Content-Type": "application/json"}
-    data = {"api_key": tmproxy_key}
+    data = {"api_key": tmproxy_api_key}
     try:
         res = requests.post(url, headers=headers, json=data, timeout=10)
         res.raise_for_status()
