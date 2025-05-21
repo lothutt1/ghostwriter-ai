@@ -222,12 +222,20 @@ def select_relevant_sources(title, top_k=1):
 # === TẠO HOOK ===
 st.markdown("---")
 st.subheader("✨ Viết Hook mở đầu video")
+
 if st.button("🧠 Tạo Hook mở đầu"):
     with st.spinner("Đang tạo hook..."):
-        refs = "\n\n".join(st.session_state.sources)
+
+        # Tự động build vector nếu chưa có
+        if "source_vectors" not in st.session_state or not st.session_state.source_vectors:
+            build_reference_vectors()
+
+        refs = select_relevant_sources(topic, top_k=3)  # chọn nguồn phù hợp nhất
+
         prompt = f"""
 You are a creative ASMR-style content writer. Write a vivid, immersive, slightly witty YouTube hook intro for:
 "{topic}"
+
 References:
 {refs}
 
@@ -237,6 +245,7 @@ Follow this format:
 - Include a funny warning: "you probably won't survive this..."
 - End with a cozy CTA to like & relax
 """
+
         try:
             res = client.chat.completions.create(
                 model="gpt-4o",
@@ -245,6 +254,7 @@ Follow this format:
                 max_tokens=500
             )
             st.session_state.hook = res.choices[0].message.content.strip()
+
         except Exception as e:
             st.error(f"❌ GPT Error khi tạo hook: {e}")
 
@@ -257,7 +267,14 @@ num_sections = st.slider("📑 Số lượng section mong muốn:", min_value=3,
 
 if st.button("⚙️ Gợi ý lại cấu trúc"):
     with st.spinner("Đang sinh cấu trúc đề xuất..."):
-        refs = "\n\n".join(st.session_state.sources)
+
+        # Đảm bảo đã build vector trước khi chọn nguồn
+        if "source_vectors" not in st.session_state or not st.session_state.source_vectors:
+            build_reference_vectors()
+
+        refs = select_relevant_sources(topic, top_k=3)  # chọn 3 đoạn tham khảo sát topic
+        raw = ""  # tránh lỗi nếu parsing thất bại
+
         prompt = f"""
 You are a YouTube script planner. Based on the topic below, generate a hook and exactly {num_sections} section titles in order.
 
@@ -271,6 +288,7 @@ Topic: {topic}
 References:
 {refs}
 """
+
         try:
             res = client.chat.completions.create(
                 model="gpt-4o",
@@ -279,19 +297,22 @@ References:
                 max_tokens=1000
             )
             raw = res.choices[0].message.content.strip()
+
+            # Gỡ bỏ markdown nếu có
             if raw.startswith("```"):
                 raw = raw.strip("`").strip()
                 if raw.lower().startswith("json"):
                     raw = raw[4:].strip()
+
             parsed = json.loads(raw)
 
             st.session_state.hook = parsed.get("hook", "")
             titles = parsed.get("sections", [])
-            st.session_state.structure_titles = [(title, "") for title in titles]  # 👈 CHỈNH Ở ĐÂY
+            st.session_state.structure_titles = [(title, "") for title in titles]  # giữ đúng định dạng
 
         except Exception as e:
             st.error("❌ GPT trả về không đúng JSON hoặc lỗi khi phân tích:")
-            st.code(raw)
+            st.code(raw if raw else "Không có phản hồi hợp lệ từ GPT.")
 
 
 # === SECTION TIÊU ĐỀ ===
