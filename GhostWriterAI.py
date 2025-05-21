@@ -305,10 +305,21 @@ if st.session_state.structure_titles:
 # === VIẾT NỘI DUNG MỖI SECTION ===
 st.markdown("---")
 st.subheader("✍️ Viết nội dung từng Section")
+
 style_files = list_available_style_vectors()
 selected_style_file = st.selectbox("🎨 Chọn phong cách cá nhân:", style_files if style_files else ["Không tìm thấy vector"])
 word_count = st.slider("🔤 Số lượng từ mỗi section:", 100, 3000, 500, step=100)
 
+# Hàm fallback nếu thiếu
+def get_style_examples(vector, sample_count=3):
+    try:
+        if isinstance(vector, (list, np.ndarray)):
+            return vector[:sample_count]
+    except:
+        return []
+    return []
+
+# Nếu có danh sách section cần viết
 if st.session_state.structure_titles:
     for idx, (title, prompt) in enumerate(st.session_state.structure_titles):
         if st.button(f"✍️ Viết Section {idx+1}: {title}", key=f"gen_{idx}"):
@@ -316,29 +327,49 @@ if st.session_state.structure_titles:
                 with st.spinner("Đang viết section..."):
                     vector = load_style_vector_from_file(selected_style_file)
                     references = select_relevant_sources(prompt)
+
+                    # Lấy section trước đó nếu có
                     prev_title = st.session_state.sections[idx - 1]["title"] if idx > 0 and idx <= len(st.session_state.sections) else None
                     prev_content = st.session_state.sections[idx - 1]["user_edit"] if idx > 0 and idx <= len(st.session_state.sections) else None
+
                     examples = get_style_examples(vector)
 
+                    # Tạo prompt đầy đủ
                     prompt_parts = [
                         "You are a writing assistant trained to match this personal narrative style.",
                         "Here are example paragraphs:\n" + "\n\n".join(examples),
                         "------------------------",
-                        f"Hook: {st.session_state.hook}"
+                        f"Hook: {st.session_state.hook}",
+                        f"Section Title: {title}",
+                        f"Section Prompt: {prompt}",
                     ]
+
                     if prev_title and prev_content:
                         prompt_parts.append("You are continuing a multi-part narrative script.")
                         prompt_parts.append(f"Previous Section Title: {prev_title}")
                         prompt_parts.append(f"Previous Section Content: {prev_content[:600]}")
-                    prompt_parts.append(f"Now, write the next section titled: '{title}'")
-                    prompt_parts.append(f"References:\n{references}")
-                    if strong_tone_prompt:
-                        prompt_parts.append(strong_tone_prompt)
-                    prompt_parts.append(
-                        f"Write a vivid, immersive section of about {word_count} words in the same tone. "
-                        f"Use {pov_choice} person point of view. Do NOT repeat the section title. Do NOT include the title in the content."
-                    )
 
+                    prompt_parts.append(f"References:\n{references}")
+
+                    # Bổ sung giọng điệu nếu có
+                    if 'strong_tone_prompt' in globals():
+                        prompt_parts.append(strong_tone_prompt)
+                    else:
+                        prompt_parts.append("Maintain consistent tone with the provided examples.")
+
+                    if 'pov_choice' in globals():
+                        prompt_parts.append(
+                            f"Write a vivid, immersive section of about {word_count} words. "
+                            f"Use {pov_choice} person point of view. "
+                            f"Do NOT include the title in the content."
+                        )
+                    else:
+                        prompt_parts.append(
+                            f"Write a vivid, immersive section of about {word_count} words in the same tone. "
+                            f"Do NOT include the title in the content."
+                        )
+
+                    # Gửi yêu cầu đến GPT
                     full_prompt = "\n\n".join(prompt_parts)
                     res = client.chat.completions.create(
                         model="gpt-4o",
@@ -346,7 +377,9 @@ if st.session_state.structure_titles:
                         temperature=0.7,
                         max_tokens=min(int(word_count * 1.5), 6000)
                     )
+
                     output = res.choices[0].message.content.strip()
+
                     if idx < len(st.session_state.sections):
                         st.session_state.sections[idx]["user_edit"] = output
                         st.session_state.sections[idx]["title"] = title
@@ -355,8 +388,10 @@ if st.session_state.structure_titles:
                             "title": title,
                             "user_edit": output
                         })
+
             except Exception as e:
                 st.error(f"❌ GPT Error: {e}")
+
 
 # === HIỂN THỊ SECTION ===
 for i, sec in enumerate(st.session_state.sections):
