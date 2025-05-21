@@ -301,12 +301,12 @@ selected_style_file = st.selectbox("🎨 Chọn phong cách cá nhân:", style_f
 word_count = st.slider("🔤 Số lượng từ mỗi section:", 100, 3000, 500, step=100)
 
 if st.session_state.structure_titles:
-    for idx, title in enumerate(st.session_state.structure_titles):
+    for idx, (title, prompt) in enumerate(st.session_state.structure_titles):
         if st.button(f"✍️ Viết Section {idx+1}: {title}", key=f"gen_{idx}"):
             try:
                 with st.spinner("Đang viết section..."):
                     vector = load_style_vector_from_file(selected_style_file)
-                    references = select_relevant_sources(title)
+                    references = select_relevant_sources(prompt)
                     prev_title = st.session_state.sections[idx - 1]["title"] if idx > 0 and idx <= len(st.session_state.sections) else None
                     prev_content = st.session_state.sections[idx - 1]["user_edit"] if idx > 0 and idx <= len(st.session_state.sections) else None
                     examples = get_style_examples(vector)
