@@ -18,13 +18,6 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2")
 
-def build_reference_vectors():
-    texts = st.session_state.sources
-    if not texts:
-        return
-    embeddings = model_embed.encode(texts, convert_to_tensor=True)
-    st.session_state.source_vectors = embeddings
-
 
 # === SESSION STATE ===
 if "hook" not in st.session_state:
