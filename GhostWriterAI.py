@@ -16,6 +16,27 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
 
+# === Thiết lập proxy toàn cục nếu có ===
+def get_tmproxy_url():
+    api_key = st.secrets["tmproxy_api_key"]  # API key lấy từ secrets.toml
+    url = "https://tmproxy.com/api/proxy/get-current-proxy"
+    headers = {
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    data = {"api_key": api_key}
+    
+    try:
+        res = requests.post(url, headers=headers, json=data, timeout=10)
+        res.raise_for_status()
+        info = res.json()["data"]
+        return {
+            "http": f"http://{info['username']}:{info['password']}@{info['https']}",
+            "https": f"http://{info['username']}:{info['password']}@{info['https']}"
+        }
+    except Exception as e:
+        st.warning(f"⚠️ Không thể lấy proxy tự động: {e}")
+        return None
 
 # === SESSION STATE ===
 if "hook" not in st.session_state:
@@ -106,30 +127,62 @@ if st.button("🔎 Tìm link Google"):
 if "search_links" in st.session_state:
     selected_links = st.multiselect("Chọn link để trích nội dung:", st.session_state.search_links)
     if st.button("📄 Trích nội dung từ link đã chọn"):
-        for link in selected_links:
-            try:
-                downloaded = trafilatura.fetch_url(link)
-                text = trafilatura.extract(downloaded)
-                if text:
-                    st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
-                else:
-                    st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
-            except Exception as e:
-                st.warning(f"⚠️ Lỗi với {link}: {e}")
-        build_reference_vectors()
-        st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+        proxies = get_tmproxy_url()
+        if not proxies:
+            st.warning("⚠️ Không lấy được proxy, dừng tiến trình.")
+        else:
+            for link in selected_links:
+                try:
+                    response = requests.get(link, proxies=proxies, timeout=10)
+                    if response.status_code == 200:
+                        downloaded = trafilatura.extract(response.text)
+                        if downloaded:
+                            st.session_state.sources.append(f"[SOURCE: {link}]\n{downloaded.strip()}")
+                        else:
+                            st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
+                    else:
+                        st.warning(f"⚠️ Link {link} trả về mã lỗi HTTP {response.status_code}")
+                except Exception as e:
+                    st.warning(f"⚠️ Lỗi với {link}: {e}")
+            build_reference_vectors()
+            st.success("✅ Đã tạo vector từ nguồn tham khảo!")
 
 yt_url = st.text_input("Link YouTube")
+
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        video_id = yt_url.split("v=")[1].split("&")[0]
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        full_text = " ".join([x['text'] for x in transcript])
-        st.session_state.sources.append(f"[YOUTUBE] {full_text}")
-        build_reference_vectors()
-        st.success("Đã lấy caption và tạo vector từ nguồn!")
+        proxy = get_tmproxy_url()  # 🔌 Lấy proxy động từ TMProxy
+        if not proxy:
+            st.error("❌ Không thể lấy proxy. Dừng xử lý.")
+        else:
+            video_id = yt_url.split("v=")[1].split("&")[0]
+            
+            # YouTubeTranscriptApi KHÔNG hỗ trợ proxy trực tiếp, nên dùng requests.get() workaround
+            from youtube_transcript_api._api import TranscriptListFetcher
+            from youtube_transcript_api.formatters import TextFormatter
+            import urllib.request
+            
+            class PatchedFetcher(TranscriptListFetcher):
+                def _get(self, url):
+                    proxy_handler = urllib.request.ProxyHandler(proxy)
+                    opener = urllib.request.build_opener(proxy_handler)
+                    request = urllib.request.Request(url)
+                    response = opener.open(request)
+                    return response.read().decode("utf-8")
+
+            fetcher = PatchedFetcher()
+            transcript_list = fetcher.fetch(video_id)
+            transcript = transcript_list.find_transcript(['en']).fetch()
+
+            formatter = TextFormatter()
+            full_text = formatter.format_transcript(transcript)
+
+            st.session_state.sources.append(f"[YOUTUBE] {full_text}")
+            build_reference_vectors()
+            st.success("✅ Đã lấy caption và tạo vector từ nguồn!")
+    
     except Exception as e:
-        st.error(f"❌ Lỗi lấy caption: {e}")
+        st.error(f"❌ Lỗi lấy caption (proxy mode): {e}")
 
 # === TẠO HOOK RIÊNG ===
 st.markdown("---")
