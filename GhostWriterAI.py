@@ -15,7 +15,7 @@ client = openai.OpenAI()
 st.set_page_config(page_title="GhostWriter AI", layout="wide")
 
 STYLE_SAMPLE_DIR = "my_style_samples"
-model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
+model_embed = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Lấy API từ Streamlit Secrets hoặc biến môi trường
 openai.api_key = os.getenv("OPENAI_API_KEY")
