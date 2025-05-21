@@ -284,14 +284,19 @@ References:
 # === SECTION TIÊU ĐỀ ===
 if st.session_state.structure_titles:
     st.markdown("#### 🧱 Tiêu đề các section (có thể chỉnh sửa hoặc xoá):")
-    for i, title in enumerate(st.session_state.structure_titles):
+
+    for i, (title, prompt) in enumerate(st.session_state.structure_titles):
         col1, col2 = st.columns([5, 1])
+
         with col1:
-            st.session_state.structure_titles[i] = st.text_input(f"Section {i+1} Title", title, key=f"title_{i}")
+            new_title = st.text_input(f"Section {i+1} Title", title, key=f"title_{i}")
+            st.session_state.structure_titles[i] = (new_title, prompt)  # cập nhật title, giữ nguyên prompt
+
         with col2:
             if st.button("❌", key=f"del_{i}"):
                 st.session_state.structure_titles.pop(i)
                 st.experimental_rerun()
+
 
 # === VIẾT NỘI DUNG MỖI SECTION ===
 st.markdown("---")
