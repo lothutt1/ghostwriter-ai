@@ -150,24 +150,25 @@ if "search_links" in st.session_state:
             build_reference_vectors()
             st.success("✅ Đã tạo vector từ nguồn tham khảo!")
 
+# === LẤY CAPTION YOUTUBE ===
 yt_url = st.text_input("Link YouTube")
 
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        proxy = get_tmproxy_url()  # 🔌 Lấy proxy động từ TMProxy
-        if not proxy:
+        proxies = get_tmproxy_url()
+        if not proxies:
             st.error("❌ Không thể lấy proxy. Dừng xử lý.")
         else:
             video_id = yt_url.split("v=")[1].split("&")[0]
-            
-            # YouTubeTranscriptApi KHÔNG hỗ trợ proxy trực tiếp, nên dùng requests.get() workaround
+
             from youtube_transcript_api._api import TranscriptListFetcher
             from youtube_transcript_api.formatters import TextFormatter
-            import urllib.request
-            
+
             class PatchedFetcher(TranscriptListFetcher):
+                def __init__(self):
+                    super().__init__(None, None)
                 def _get(self, url):
-                    proxy_handler = urllib.request.ProxyHandler(proxy)
+                    proxy_handler = urllib.request.ProxyHandler(proxies)
                     opener = urllib.request.build_opener(proxy_handler)
                     request = urllib.request.Request(url)
                     response = opener.open(request)
@@ -183,7 +184,7 @@ if st.button("🎬 Lấy caption") and yt_url:
             st.session_state.sources.append(f"[YOUTUBE] {full_text}")
             build_reference_vectors()
             st.success("✅ Đã lấy caption và tạo vector từ nguồn!")
-    
+
     except Exception as e:
         st.error(f"❌ Lỗi lấy caption (proxy mode): {e}")
 
