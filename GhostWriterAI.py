@@ -48,18 +48,17 @@ def load_style_vector_from_file(file):
         return np.array(json.load(f))
 
 # === TMProxy cache hỗ trợ ===
-import requests
-import time
-
-tmproxy_api_key = st.secrets["TM_PROXY_API_KEY"]
-
 def get_tmproxy_with_cache(api_key):
+    import requests
+    import time
+
     if "tmproxy" not in st.session_state:
         st.session_state.tmproxy = {}
 
     cache = st.session_state.tmproxy
     now = time.time()
 
+    # Nếu còn hiệu lực thì dùng lại
     if cache and now < cache.get("expires_at", 0) - 30:
         return cache["proxy_url"]
 
@@ -72,6 +71,7 @@ def get_tmproxy_with_cache(api_key):
         res.raise_for_status()
         res_json = res.json()
 
+        # Nếu thành công → lưu và trả proxy mới
         if res_json["code"] == 0:
             proxy = res_json["data"]
             proxy_url = f"http://{proxy['username']}:{proxy['password']}@{proxy['https']}"
@@ -81,12 +81,23 @@ def get_tmproxy_with_cache(api_key):
                 "proxy_url": proxy_url,
                 "expires_at": expires_at
             }
+
             return proxy_url
+
+        # Nếu bị giới hạn thời gian → dùng lại proxy cũ nếu có
+        elif "retry after" in res_json.get("message", "").lower():
+            if cache.get("proxy_url"):
+                wait_msg = res_json["message"]
+                st.info(f"🔁 {wait_msg}. Đang dùng lại proxy cũ.")
+                return cache["proxy_url"]
+            else:
+                raise Exception(f"TMProxy chưa có proxy trước đó để dùng lại.")
+
         else:
             raise Exception(f"TMProxy Error: {res_json.get('message')}")
 
     except Exception as e:
-        st.error(f"❌ Không lấy được proxy từ TMProxy: {e}")
+        st.error(f"❌ Không thể lấy proxy từ TMProxy: {e}")
         return None
 
 # === GIAO DIỆN CHÍNH ===
