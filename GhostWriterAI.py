@@ -363,7 +363,9 @@ if st.session_state.structure_titles:
 
                     # Tạo prompt đầy đủ
                     prompt_parts = [
-                        "You are a writing assistant trained to match this personal narrative style.",
+                        "You are a writing assistant trained to match this personal narrative style and helping to write a multi-part YouTube script.",
+                        "Each section should connect smoothly with the next and avoid summarizing or concluding the whole topic.",
+                        "Your job is to write the next section in a vivid, immersive tone, continuing the story step by step.",
                         "Here are example paragraphs:\n" + "\n\n".join(examples),
                         "------------------------",
                         f"Hook: {st.session_state.hook}",
