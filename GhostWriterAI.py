@@ -3,6 +3,8 @@ import openai
 import os
 import json
 import numpy as np
+import requests
+import time
 from datetime import datetime
 import trafilatura
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -48,9 +50,8 @@ def load_style_vector_from_file(file):
         return np.array(json.load(f))
 
 # === TMProxy cache hỗ trợ ===
+tmproxy_api_key = st.secrets["TM_PROXY_API_KEY"]
 def get_tmproxy_with_cache(api_key):
-    import requests
-    import time
 
     if "tmproxy" not in st.session_state:
         st.session_state.tmproxy = {}
