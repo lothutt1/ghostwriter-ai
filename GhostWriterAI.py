@@ -16,6 +16,10 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
 
+# Lấy API từ Streamlit Secrets hoặc biến môi trường
+openai.api_key = os.getenv("OPENAI_API_KEY")
+tmp_key = os.getenv("tmproxy_api_key")
+
 # === Thiết lập proxy toàn cục nếu có ===
 def get_tmproxy_url():
     api_key = st.secrets["tmproxy_api_key"]  # API key lấy từ secrets.toml
