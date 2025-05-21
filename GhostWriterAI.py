@@ -367,6 +367,7 @@ if st.session_state.structure_titles:
                         "Here are example paragraphs:\n" + "\n\n".join(examples),
                         "------------------------",
                         f"Hook: {st.session_state.hook}",
+                        f"Topic: {topic}",
                         f"Section Title: {title}",
                         f"Section Prompt: {prompt}",
                     ]
