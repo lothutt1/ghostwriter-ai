@@ -230,7 +230,7 @@ if st.button("🧠 Tạo Hook mở đầu"):
     with st.spinner("Đang tạo hook..."):
 
         # ✅ An toàn hơn khi check session_state
-        if not st.session_state.get("source_vectors"):
+        if "source_vectors" not in st.session_state or not st.session_state.source_vectors:
             build_reference_vectors()
 
         refs = select_relevant_sources(topic, top_k=3)
