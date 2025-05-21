@@ -6,3 +6,4 @@ sentence-transformers
 googlesearch-python
 numpy
 requests
+requests[socks]
