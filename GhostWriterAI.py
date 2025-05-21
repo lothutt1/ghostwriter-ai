@@ -226,11 +226,11 @@ st.subheader("✨ Viết Hook mở đầu video")
 if st.button("🧠 Tạo Hook mở đầu"):
     with st.spinner("Đang tạo hook..."):
 
-        # Tự động build vector nếu chưa có
-        if "source_vectors" not in st.session_state or not st.session_state.source_vectors:
+        # ✅ An toàn hơn khi check session_state
+        if not st.session_state.get("source_vectors"):
             build_reference_vectors()
 
-        refs = select_relevant_sources(topic, top_k=3)  # chọn nguồn phù hợp nhất
+        refs = select_relevant_sources(topic, top_k=3)
 
         prompt = f"""
 You are a creative ASMR-style content writer. Write a vivid, immersive, slightly witty YouTube hook intro for:
@@ -259,6 +259,7 @@ Follow this format:
             st.error(f"❌ GPT Error khi tạo hook: {e}")
 
 st.text_area("✨ Hook mở đầu:", st.session_state.hook, height=150, key="hook_textarea")
+
 
 # === GỢI Ý CẤU TRÚC NỘI DUNG ===
 st.markdown("---")
