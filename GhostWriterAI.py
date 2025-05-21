@@ -48,6 +48,11 @@ def load_style_vector_from_file(file):
         return np.array(json.load(f))
 
 # === TMProxy cache hỗ trợ ===
+import requests
+import time
+
+tmproxy_api_key = st.secrets["TM_PROXY_API_KEY"]
+
 def get_tmproxy_with_cache(api_key):
     if "tmproxy" not in st.session_state:
         st.session_state.tmproxy = {}
@@ -58,24 +63,46 @@ def get_tmproxy_with_cache(api_key):
     if cache and now < cache.get("expires_at", 0) - 30:
         return cache["proxy_url"]
 
-    url = "https://tmproxy.com/api/proxy/get-new-proxy"
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
-    data = {"api_key": api_key, "id_location": 0, "id_isp": 0}
+    try:
+        url = "https://tmproxy.com/api/proxy/get-new-proxy"
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        data = {"api_key": api_key, "id_location": 0, "id_isp": 0}
 
-    res = requests.post(url, headers=headers, json=data).json()
+        res = requests.post(url, headers=headers, json=data, timeout=10)
+        res.raise_for_status()
+        res_json = res.json()
 
-    if res["code"] == 0:
-        proxy = res["data"]
-        proxy_url = f"http://{proxy['username']}:{proxy['password']}@{proxy['https']}"
-        expires_at = now + proxy["timeout"]
+        if res_json["code"] == 0:
+            proxy = res_json["data"]
+            proxy_url = f"http://{proxy['username']}:{proxy['password']}@{proxy['https']}"
+            expires_at = now + proxy["timeout"]
 
-        st.session_state.tmproxy = {
-            "proxy_url": proxy_url,
-            "expires_at": expires_at
-        }
-        return proxy_url
-    else:
-        raise Exception(f"TMProxy Error: {res.get('message')}")
+            st.session_state.tmproxy = {
+                "proxy_url": proxy_url,
+                "expires_at": expires_at
+            }
+            return proxy_url
+        else:
+            raise Exception(f"TMProxy Error: {res_json.get('message')}")
+
+    except Exception as e:
+        st.error(f"❌ Không lấy được proxy từ TMProxy: {e}")
+        return None
+
+# === GIAO DIỆN CHÍNH ===
+st.title("📝 GhostWriter AI")
+topic = st.text_input("🎯 Nhập chủ đề hoặc nội dung video:")
+pov_choice = st.selectbox("👤 Chọn ngôi kể:", ["first", "second", "third"], index=1)
+
+selected_personas = st.multiselect("🎭 Chọn các phong cách hành văn muốn kết hợp:", list(persona_tones.keys()))
+style_tone_instruction = ", ".join([persona_tones[p] for p in selected_personas]) if selected_personas else ""
+strong_tone_prompt = ""
+if style_tone_instruction:
+    strong_tone_prompt = (
+        f"Write this section in a distinctly {style_tone_instruction} tone.\n"
+        f"Channel the spirit of a narrator who embodies these traits in full.\n"
+        f"Avoid solemn or overly poetic language unless it enhances the comedic or satirical effect."
+    )
 
 # === NGUỒN THAM KHẢO GOOGLE ===
 if st.button("🔎 Tìm link Google"):
@@ -91,7 +118,7 @@ if "search_links" in st.session_state:
     selected_links = st.multiselect("Chọn link để trích nội dung:", st.session_state.search_links)
     if st.button("📄 Trích nội dung từ link đã chọn"):
         try:
-            proxy_url = get_tmproxy_with_cache("f9392520fb4446804b14e86a871f0afc")
+            proxy_url = get_tmproxy_with_cache("tmproxy_api_key")
             proxy_dict = {"http": proxy_url, "https": proxy_url}
             session = requests.Session()
             session.proxies.update(proxy_dict)
@@ -149,20 +176,7 @@ def select_relevant_sources(title, top_k=1):
     scores = [(text, float(util.cos_sim(title_vec, vec))) for text, vec in st.session_state.source_vectors]
     scores.sort(key=lambda x: -x[1])
     return "\n\n".join([s[0] for s in scores[:top_k]])
-# === GIAO DIỆN CHÍNH ===
-st.title("📝 GhostWriter AI")
-topic = st.text_input("🎯 Nhập chủ đề hoặc nội dung video:")
-pov_choice = st.selectbox("👤 Chọn ngôi kể:", ["first", "second", "third"], index=1)
 
-selected_personas = st.multiselect("🎭 Chọn các phong cách hành văn muốn kết hợp:", list(persona_tones.keys()))
-style_tone_instruction = ", ".join([persona_tones[p] for p in selected_personas]) if selected_personas else ""
-strong_tone_prompt = ""
-if style_tone_instruction:
-    strong_tone_prompt = (
-        f"Write this section in a distinctly {style_tone_instruction} tone.\n"
-        f"Channel the spirit of a narrator who embodies these traits in full.\n"
-        f"Avoid solemn or overly poetic language unless it enhances the comedic or satirical effect."
-    )
 
 # === TẠO HOOK ===
 st.markdown("---")
