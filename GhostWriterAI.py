@@ -18,6 +18,14 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2")
 
+def build_reference_vectors():
+    texts = st.session_state.sources
+    if not texts:
+        return
+    embeddings = model_embed.encode(texts, convert_to_tensor=True)
+    st.session_state.source_vectors = embeddings
+
+
 # === SESSION STATE ===
 if "hook" not in st.session_state:
     st.session_state.hook = ""
@@ -130,25 +138,28 @@ if "search_links" in st.session_state:
     selected_links = st.multiselect("Chọn link để trích nội dung:", st.session_state.search_links)
     if st.button("📄 Trích nội dung từ link đã chọn"):
         try:
-            proxy_url = get_tmproxy_with_cache("tmproxy_api_key")
-            proxy_dict = {"http": proxy_url, "https": proxy_url}
-            session = requests.Session()
-            session.proxies.update(proxy_dict)
+            proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
 
-            for link in selected_links:
-                try:
-                    downloaded = trafilatura.fetch_url(link, request_kwargs={"session": session})
-                    text = trafilatura.extract(downloaded)
-                    if text:
-                        st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
-                    else:
-                        st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
-                except Exception as e:
-                    st.warning(f"⚠️ Lỗi với {link}: {e}")
-            build_reference_vectors()
-            st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+            if proxy_url:
+                proxy_dict = {"http": proxy_url, "https": proxy_url}
+
+                for link in selected_links:
+                    try:
+                        response = requests.get(link, proxies=proxy_dict, timeout=10)
+                        text = trafilatura.extract(response.text)
+                        if text:
+                            st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
+                        else:
+                            st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
+                    except Exception as e:
+                        st.warning(f"⚠️ Lỗi với {link}: {e}")
+                build_reference_vectors()
+                st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+            else:
+                st.warning("⚠️ Không có proxy hợp lệ. Dừng tiến trình.")
         except Exception as e:
             st.error(f"❌ Lỗi proxy khi trích Google: {e}")
+
 
 # === LẤY CAPTION YOUTUBE ===
 from urllib.parse import urlparse, parse_qs
@@ -158,17 +169,26 @@ yt_url = st.text_input("Link YouTube")
 
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]  # <== dòng thiếu
-        proxies = {"http": proxy_url, "https": proxy_url}              # TMProxy proxy_url lấy ở trên
+        # Lấy video ID từ link YouTube
+        video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]
 
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
-        full_text = " ".join([x['text'] for x in transcript])
+        # Lấy proxy từ TMProxy
+        proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
 
-        st.session_state.sources.append(f"[YOUTUBE] {full_text}")
-        build_reference_vectors()
-        st.success("✅ Đã lấy caption từ YouTube!")
+        if proxy_url:
+            proxies = {"http": proxy_url, "https": proxy_url}
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
+            full_text = " ".join([x['text'] for x in transcript])
+
+            st.session_state.sources.append(f"[YOUTUBE] {full_text}")
+            build_reference_vectors()
+            st.success("✅ Đã lấy caption từ YouTube qua TMProxy!")
+        else:
+            st.warning("⚠️ Không có proxy hợp lệ. Dừng tiến trình.")
+
     except Exception as e:
         st.error(f"❌ Lỗi lấy caption: {e}")
+
 
 # === BUILD VECTOR ===
 def build_reference_vectors():

@@ -1,9 +1,8 @@
 streamlit
 openai
-trafilatura
-youtube-transcript-api
-sentence-transformers
-googlesearch-python
 numpy
 requests
-requests[socks]
+trafilatura
+youtube-transcript-api
+googlesearch-python
+sentence-transformers
