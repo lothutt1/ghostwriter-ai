@@ -31,6 +31,34 @@ if "structure_titles" not in st.session_state:
 if "source_vectors" not in st.session_state:
     st.session_state.source_vectors = []
 
+def build_reference_vectors():
+    chunks = set()  # ✅ Tránh trùng đoạn
+
+    for src in st.session_state.sources:
+        # Bỏ dòng đầu chứa metadata nếu có
+        if src.startswith("[SOURCE:") or src.startswith("[YOUTUBE]"):
+            src = "\n".join(src.split("\n")[1:])
+
+        # Chia thành đoạn nhỏ
+        paragraphs = src.split("\n")
+        for p in paragraphs:
+            p = p.strip()
+            if 100 < len(p) < 1000:  # ✅ Giới hạn độ dài hợp lý
+                chunks.add(p)
+
+    # Chuyển sang list và encode
+    st.session_state.source_vectors = [
+        (text, model_embed.encode(text, convert_to_tensor=False)) for text in chunks
+    ]
+
+
+def select_relevant_sources(title, top_k=1):
+    title_vec = model_embed.encode(title, convert_to_tensor=False)
+    scores = [(text, float(util.cos_sim(title_vec, vec))) for text, vec in st.session_state.source_vectors]
+    scores.sort(key=lambda x: -x[1])
+    return "\n\n".join([s[0] for s in scores[:top_k]])
+
+
 # === CÁC TONE PHONG CÁCH ĐỊNH SẴN ===
 persona_tones = {
     "Giáo sư châm biếm": "witty, sarcastic, intellectually playful",
@@ -185,34 +213,6 @@ if st.button("🎬 Lấy caption") and yt_url:
         st.error("❌ Video không hỗ trợ phụ đề hoặc không thể lấy caption.")
     except Exception as e:
         st.error(f"❌ Lỗi lấy caption: {e}")
-
-
-def build_reference_vectors():
-    chunks = set()  # ✅ Tránh trùng đoạn
-
-    for src in st.session_state.sources:
-        # Bỏ dòng đầu chứa metadata nếu có
-        if src.startswith("[SOURCE:") or src.startswith("[YOUTUBE]"):
-            src = "\n".join(src.split("\n")[1:])
-
-        # Chia thành đoạn nhỏ
-        paragraphs = src.split("\n")
-        for p in paragraphs:
-            p = p.strip()
-            if 100 < len(p) < 1000:  # ✅ Giới hạn độ dài hợp lý
-                chunks.add(p)
-
-    # Chuyển sang list và encode
-    st.session_state.source_vectors = [
-        (text, model_embed.encode(text, convert_to_tensor=False)) for text in chunks
-    ]
-
-
-def select_relevant_sources(title, top_k=1):
-    title_vec = model_embed.encode(title, convert_to_tensor=False)
-    scores = [(text, float(util.cos_sim(title_vec, vec))) for text, vec in st.session_state.source_vectors]
-    scores.sort(key=lambda x: -x[1])
-    return "\n\n".join([s[0] for s in scores[:top_k]])
 
 
 # === TẠO HOOK ===
