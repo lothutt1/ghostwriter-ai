@@ -113,7 +113,9 @@ if "search_links" in st.session_state:
 
 # === LẤY CAPTION YOUTUBE ===
 from urllib.parse import urlparse, parse_qs
-from youtube_transcript_api._api import TranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi
+transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
+
 
 yt_url = st.text_input("Link YouTube")
 tmproxy_api_key = "f9392520fb4446804b14e86a871f0afc"  # bạn có thể thay bằng biến riêng nếu muốn ẩn
