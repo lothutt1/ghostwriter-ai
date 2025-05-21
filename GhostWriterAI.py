@@ -16,7 +16,6 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2")
 
-
 # === SESSION STATE ===
 if "hook" not in st.session_state:
     st.session_state.hook = ""
@@ -33,11 +32,11 @@ if "source_vectors" not in st.session_state:
 persona_tones = {
     "Giáo sư châm biếm": "witty, sarcastic, intellectually playful",
     "ASMR nhẹ nhàng": "calm, sensory, soothing and immersive",
-    "Hài sử bựa": "goofy, absurd, highly exaggerated and comedic",
+    "Hài hước phóng đại": "goofy, absurd, highly exaggerated and comedic",
     "Kể như bạn thân": "casual, relatable, conversational",
-    "Kinh dị lịch sử": "dark, suspenseful, vivid and unsettling",
-    "Sử chuẩn sách giáo khoa": "formal, precise, informative",
-    "Triết lý phản tư": "poetic, reflective, symbolic and deep"
+    "Kinh dị thì thầm": "dark, suspenseful, vivid and unsettling",
+    "Sử chuẩn giáo sư": "formal, precise, informative",
+    "Triết lý huyền bí": "poetic, reflective, symbolic and deep"
 }
 
 # === STYLE VECTOR ===
@@ -46,57 +45,9 @@ def list_available_style_vectors():
 
 def load_style_vector_from_file(file):
     with open(file, "r", encoding="utf-8") as f:
-        return np.array(json.load(f)["personal_style_vector"], dtype=np.float32)
-
-def get_style_examples(vector, k=2):
-    examples = []
-    for fname in os.listdir(STYLE_SAMPLE_DIR):
-        if fname.endswith(".txt"):
-            with open(os.path.join(STYLE_SAMPLE_DIR, fname), "r", encoding="utf-8") as f:
-                text = f.read().strip()
-                if text:
-                    vec = model_embed.encode(text)
-                    sim = util.cos_sim(vec, vector)[0][0].item()
-                    examples.append((text, sim))
-    examples.sort(key=lambda x: -x[1])
-    return [e[0] for e in examples[:k]]
-
-def build_reference_vectors():
-    chunks = []
-    for src in st.session_state.sources:
-        paragraphs = src.split("\n")
-        for p in paragraphs:
-            p = p.strip()
-            if 100 < len(p) < 1000:
-                chunks.append(p)
-    st.session_state.source_vectors = [(text, model_embed.encode(text)) for text in chunks]
-
-def select_relevant_sources(title, top_k=1):
-    title_vec = model_embed.encode(title)
-    scores = [(text, float(util.cos_sim(title_vec, vec))) for text, vec in st.session_state.source_vectors]
-    scores.sort(key=lambda x: -x[1])
-    return "\n\n".join([s[0] for s in scores[:top_k]])
-
-# === GIAO DIỆN CHÍNH ===
-st.title("📝 GhostWriter AI")
-topic = st.text_input("🎯 Nhập chủ đề hoặc nội dung video:")
-pov_choice = st.selectbox("👤 Chọn ngôi kể:", ["first", "second", "third"], index=1)
-
-selected_personas = st.multiselect("🎭 Chọn các phong cách hành văn muốn kết hợp:", list(persona_tones.keys()))
-style_tone_instruction = ", ".join([persona_tones[p] for p in selected_personas]) if selected_personas else ""
-strong_tone_prompt = ""
-if style_tone_instruction:
-    strong_tone_prompt = (
-        f"Write this section in a distinctly {style_tone_instruction} tone.\n"
-        f"Channel the spirit of a narrator who embodies these traits in full.\n"
-        f"Avoid solemn or overly poetic language unless it enhances the comedic or satirical effect."
-    )
-
+        return np.array(json.load(f))
 
 # === TMProxy cache hỗ trợ ===
-import requests
-import time
-
 def get_tmproxy_with_cache(api_key):
     if "tmproxy" not in st.session_state:
         st.session_state.tmproxy = {}
@@ -126,7 +77,7 @@ def get_tmproxy_with_cache(api_key):
     else:
         raise Exception(f"TMProxy Error: {res.get('message')}")
 
-# === NGUỒN THAM KHẢO ===
+# === NGUỒN THAM KHẢO GOOGLE ===
 if st.button("🔎 Tìm link Google"):
     with st.spinner("Đang tìm kiếm trên Google..."):
         try:
@@ -160,12 +111,12 @@ if "search_links" in st.session_state:
         except Exception as e:
             st.error(f"❌ Lỗi proxy khi trích Google: {e}")
 
-# === Lấy caption YouTube ===
-from youtube_transcript_api._api import TranscriptApi
+# === LẤY CAPTION YOUTUBE ===
 from urllib.parse import urlparse, parse_qs
+from youtube_transcript_api._api import TranscriptApi
 
 yt_url = st.text_input("Link YouTube")
-tmproxy_api_key = "f9392520fb4446804b14e86a871f0afc"  # đã điền API KEY CỦA BẠN
+tmproxy_api_key = "f9392520fb4446804b14e86a871f0afc"  # bạn có thể thay bằng biến riêng nếu muốn ẩn
 
 if st.button("🎬 Lấy caption") and yt_url:
     try:
@@ -182,7 +133,40 @@ if st.button("🎬 Lấy caption") and yt_url:
     except Exception as e:
         st.error(f"❌ Lỗi khi lấy caption qua proxy: {e}")
 
-# === TẠO HOOK RIÊNG ===
+# === BUILD VECTOR ===
+def build_reference_vectors():
+    chunks = []
+    for src in st.session_state.sources:
+        paragraphs = src.split("\n")
+        for p in paragraphs:
+            p = p.strip()
+            if 100 < len(p) < 1000:
+                chunks.append(p)
+    st.session_state.source_vectors = [
+        (text, model_embed.encode(text, convert_to_tensor=False)) for text in chunks
+    ]
+
+def select_relevant_sources(title, top_k=1):
+    title_vec = model_embed.encode(title, convert_to_tensor=False)
+    scores = [(text, float(util.cos_sim(title_vec, vec))) for text, vec in st.session_state.source_vectors]
+    scores.sort(key=lambda x: -x[1])
+    return "\n\n".join([s[0] for s in scores[:top_k]])
+# === GIAO DIỆN CHÍNH ===
+st.title("📝 GhostWriter AI")
+topic = st.text_input("🎯 Nhập chủ đề hoặc nội dung video:")
+pov_choice = st.selectbox("👤 Chọn ngôi kể:", ["first", "second", "third"], index=1)
+
+selected_personas = st.multiselect("🎭 Chọn các phong cách hành văn muốn kết hợp:", list(persona_tones.keys()))
+style_tone_instruction = ", ".join([persona_tones[p] for p in selected_personas]) if selected_personas else ""
+strong_tone_prompt = ""
+if style_tone_instruction:
+    strong_tone_prompt = (
+        f"Write this section in a distinctly {style_tone_instruction} tone.\n"
+        f"Channel the spirit of a narrator who embodies these traits in full.\n"
+        f"Avoid solemn or overly poetic language unless it enhances the comedic or satirical effect."
+    )
+
+# === TẠO HOOK ===
 st.markdown("---")
 st.subheader("✨ Viết Hook mở đầu video")
 if st.button("🧠 Tạo Hook mở đầu"):
@@ -213,7 +197,7 @@ Follow this format:
 
 st.text_area("✨ Hook mở đầu:", st.session_state.hook, height=150, key="hook_textarea")
 
-# === CẤU TRÚC SECTION ===
+# === GỢI Ý CẤU TRÚC NỘI DUNG ===
 st.markdown("---")
 st.subheader("📚 Gợi ý cấu trúc nội dung")
 num_sections = st.slider("📑 Số lượng section mong muốn:", min_value=3, max_value=10, value=6, step=1)
@@ -253,7 +237,7 @@ References:
             st.error("❌ GPT trả về không đúng JSON hoặc lỗi khi phân tích:")
             st.code(raw)
 
-# === TIÊU ĐỀ SECTION CÓ THỂ XOÁ ===
+# === SECTION TIÊU ĐỀ ===
 if st.session_state.structure_titles:
     st.markdown("#### 🧱 Tiêu đề các section (có thể chỉnh sửa hoặc xoá):")
     for i, title in enumerate(st.session_state.structure_titles):
@@ -265,7 +249,7 @@ if st.session_state.structure_titles:
                 st.session_state.structure_titles.pop(i)
                 st.experimental_rerun()
 
-# === VIẾT SECTION ===
+# === VIẾT NỘI DUNG MỖI SECTION ===
 st.markdown("---")
 st.subheader("✍️ Viết nội dung từng Section")
 style_files = list_available_style_vectors()
@@ -320,6 +304,7 @@ if st.session_state.structure_titles:
                         })
             except Exception as e:
                 st.error(f"❌ GPT Error: {e}")
+
 # === HIỂN THỊ SECTION ===
 for i, sec in enumerate(st.session_state.sections):
     st.markdown(f"### 📦 {sec['title']}")
@@ -340,3 +325,4 @@ if st.session_state.sections:
         file_name=filename,
         mime="text/plain"
     )
+
