@@ -16,27 +16,6 @@ st.set_page_config(page_title="GhostWriter AI", layout="wide")
 STYLE_SAMPLE_DIR = "my_style_samples"
 model_embed = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
 
-# === Thiết lập proxy toàn cục nếu có ===
-def get_tmproxy_url():
-    api_key = st.secrets["tmproxy_api_key"]  # API key lấy từ secrets.toml
-    url = "https://tmproxy.com/api/proxy/get-current-proxy"
-    headers = {
-        "accept": "application/json",
-        "Content-Type": "application/json"
-    }
-    data = {"api_key": api_key}
-    
-    try:
-        res = requests.post(url, headers=headers, json=data, timeout=10)
-        res.raise_for_status()
-        info = res.json()["data"]
-        return {
-            "http": f"http://{info['username']}:{info['password']}@{info['https']}",
-            "https": f"http://{info['username']}:{info['password']}@{info['https']}"
-        }
-    except Exception as e:
-        st.warning(f"⚠️ Không thể lấy proxy tự động: {e}")
-        return None
 
 # === SESSION STATE ===
 if "hook" not in st.session_state:
