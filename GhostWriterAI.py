@@ -373,9 +373,10 @@ if st.session_state.structure_titles:
                     ]
 
                     if prev_title and prev_content:
-                        prompt_parts.append("You are continuing a multi-part narrative script.")
-                        prompt_parts.append(f"Previous Section Title: {prev_title}")
-                        prompt_parts.append(f"Previous Section Content: {prev_content[:600]}")
+                        prompt_parts.append("You are continuing a continuous narrative made of multiple seamlessly connected sections.")
+                        prompt_parts.append("Begin the next section as a smooth continuation of the previous one. Do NOT start with a new scene or reset. Let it flow naturally from what came before.")
+                        prompt_parts.append("Use a transitional phrase at the beginning (like 'But then', 'Moments later', 'As you move on', etc.) to help the flow.")
+                        prompt_parts.append(f"Here is the previous Section Content: {prev_content[:600]}")
 
                     prompt_parts.append(f"References:\n{references}")
 
