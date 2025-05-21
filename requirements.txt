@@ -1,6 +1,6 @@
 streamlit
 openai
-newspaper3k
+trafilatura
 youtube-transcript-api
 sentence-transformers
 googlesearch-python

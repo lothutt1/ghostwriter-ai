@@ -4,7 +4,7 @@ import os
 import json
 import numpy as np
 from datetime import datetime
-from newspaper import Article
+import trafilatura
 from youtube_transcript_api import YouTubeTranscriptApi
 from googlesearch import search
 from sentence_transformers import SentenceTransformer, util
@@ -107,13 +107,14 @@ if "search_links" in st.session_state:
     if st.button("📄 Trích nội dung từ link đã chọn"):
         for link in selected_links:
             try:
-                article = Article(link)
-                article.download()
-                article.parse()
-                text = article.text.strip()
-                st.session_state.sources.append(f"[SOURCE: {link}]\n{text}")
-            except:
-                st.warning(f"⚠️ Không lấy được nội dung từ: {link}")
+                downloaded = trafilatura.fetch_url(link)
+                text = trafilatura.extract(downloaded)
+                if text:
+                    st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
+                else:
+                    st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
+            except Exception as e:
+                st.warning(f"⚠️ Lỗi với {link}: {e}")
         build_reference_vectors()
         st.success("✅ Đã tạo vector từ nguồn tham khảo!")
 
