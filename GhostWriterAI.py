@@ -366,6 +366,7 @@ if st.session_state.structure_titles:
                         "You are a writing assistant trained to match this personal narrative style and helping to write a multi-part YouTube script.",
                         "Each section should connect smoothly with the next and avoid summarizing or concluding the whole topic.",
                         "Your job is to write the next section in a vivid, immersive tone, continuing the story step by step.",
+                        "Try not to begin with overused phrases like 'Imagine this' or 'Picture yourself.' Instead, lead the reader into the scene in a captivating and elegant way.",
                         "Here are example paragraphs:\n" + "\n\n".join(examples),
                         "------------------------",
                         f"Hook: {st.session_state.hook}",
@@ -434,7 +435,7 @@ st.markdown("---")
 if st.session_state.sections:
     full_text = st.session_state.hook + "\n\n"
     for sec in st.session_state.sections:
-        full_text += f"{sec['title']}\n{sec['user_edit']}\n\n"
+        full_text += f"{sec['user_edit']}\n\n"  # ❌ bỏ phần title
 
     filename = f"ghostwriter_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
