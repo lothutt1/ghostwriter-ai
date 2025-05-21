@@ -93,6 +93,39 @@ if style_tone_instruction:
     )
 
 
+# === TMProxy cache hỗ trợ ===
+import requests
+import time
+
+def get_tmproxy_with_cache(api_key):
+    if "tmproxy" not in st.session_state:
+        st.session_state.tmproxy = {}
+
+    cache = st.session_state.tmproxy
+    now = time.time()
+
+    if cache and now < cache.get("expires_at", 0) - 30:
+        return cache["proxy_url"]
+
+    url = "https://tmproxy.com/api/proxy/get-new-proxy"
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    data = {"api_key": api_key, "id_location": 0, "id_isp": 0}
+
+    res = requests.post(url, headers=headers, json=data).json()
+
+    if res["code"] == 0:
+        proxy = res["data"]
+        proxy_url = f"http://{proxy['username']}:{proxy['password']}@{proxy['https']}"
+        expires_at = now + proxy["timeout"]
+
+        st.session_state.tmproxy = {
+            "proxy_url": proxy_url,
+            "expires_at": expires_at
+        }
+        return proxy_url
+    else:
+        raise Exception(f"TMProxy Error: {res.get('message')}")
+
 # === NGUỒN THAM KHẢO ===
 if st.button("🔎 Tìm link Google"):
     with st.spinner("Đang tìm kiếm trên Google..."):
@@ -106,30 +139,48 @@ if st.button("🔎 Tìm link Google"):
 if "search_links" in st.session_state:
     selected_links = st.multiselect("Chọn link để trích nội dung:", st.session_state.search_links)
     if st.button("📄 Trích nội dung từ link đã chọn"):
-        for link in selected_links:
-            try:
-                downloaded = trafilatura.fetch_url(link)
-                text = trafilatura.extract(downloaded)
-                if text:
-                    st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
-                else:
-                    st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
-            except Exception as e:
-                st.warning(f"⚠️ Lỗi với {link}: {e}")
-        build_reference_vectors()
-        st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+        try:
+            proxy_url = get_tmproxy_with_cache("f9392520fb4446804b14e86a871f0afc")
+            proxy_dict = {"http": proxy_url, "https": proxy_url}
+            session = requests.Session()
+            session.proxies.update(proxy_dict)
+
+            for link in selected_links:
+                try:
+                    downloaded = trafilatura.fetch_url(link, request_kwargs={"session": session})
+                    text = trafilatura.extract(downloaded)
+                    if text:
+                        st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
+                    else:
+                        st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
+                except Exception as e:
+                    st.warning(f"⚠️ Lỗi với {link}: {e}")
+            build_reference_vectors()
+            st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+        except Exception as e:
+            st.error(f"❌ Lỗi proxy khi trích Google: {e}")
+
+# === Lấy caption YouTube ===
+from youtube_transcript_api._api import TranscriptApi
+from urllib.parse import urlparse, parse_qs
 
 yt_url = st.text_input("Link YouTube")
+tmproxy_api_key = "f9392520fb4446804b14e86a871f0afc"  # đã điền API KEY CỦA BẠN
+
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        video_id = yt_url.split("v=")[1].split("&")[0]
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]
+        proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
+        proxies = {"http": proxy_url, "https": proxy_url}
+
+        transcript = TranscriptApi.get_transcript(video_id, proxies=proxies)
         full_text = " ".join([x['text'] for x in transcript])
+
         st.session_state.sources.append(f"[YOUTUBE] {full_text}")
         build_reference_vectors()
-        st.success("Đã lấy caption và tạo vector từ nguồn!")
+        st.success("✅ Đã lấy caption từ YouTube qua TMProxy!")
     except Exception as e:
-        st.error(f"❌ Lỗi lấy caption: {e}")
+        st.error(f"❌ Lỗi khi lấy caption qua proxy: {e}")
 
 # === TẠO HOOK RIÊNG ===
 st.markdown("---")
