@@ -1,0 +1,8 @@
+streamlit
+openai
+newspaper3k
+youtube-transcript-api
+sentence-transformers
+googlesearch-python
+numpy
+requests
