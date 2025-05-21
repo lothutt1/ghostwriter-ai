@@ -1,0 +1,18 @@
+# 🔐 Bỏ qua file chứa key
+.streamlit/secrets.toml
+
+# 🧠 Python cache
+__pycache__/
+*.pyc
+
+# 🧪 Môi trường ảo (nếu có)
+venv/
+.env
+
+# ⚙️ IDE/editor
+.vscode/
+.idea/
+
+# 📁 Hệ thống
+.DS_Store
+Thumbs.db
