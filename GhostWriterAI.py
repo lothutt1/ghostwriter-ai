@@ -129,19 +129,22 @@ if st.button("🔎 Tìm link Google"):
     with st.spinner("Đang tìm kiếm trên Google..."):
         try:
             results = list(search(topic, num_results=25))
-            st.session_state.sources = []
             st.session_state.search_links = results
         except Exception as e:
             st.error(f"Lỗi Google Search: {e}")
 
 if "search_links" in st.session_state:
     selected_links = st.multiselect("Chọn link để trích nội dung:", st.session_state.search_links)
+
     if st.button("📄 Trích nội dung từ link đã chọn"):
         try:
             proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
 
             if proxy_url:
                 proxy_dict = {"http": proxy_url, "https": proxy_url}
+
+                # Làm sạch trước khi thêm mới
+                st.session_state.sources = []
 
                 for link in selected_links:
                     try:
@@ -151,10 +154,12 @@ if "search_links" in st.session_state:
                             st.session_state.sources.append(f"[SOURCE: {link}]\n{text.strip()}")
                         else:
                             st.warning(f"⚠️ Không trích xuất được nội dung từ: {link}")
-                    except Exception as e:
-                        st.warning(f"⚠️ Lỗi với {link}: {e}")
+                    except requests.exceptions.RequestException as e:
+                        st.warning(f"⚠️ Lỗi khi truy cập {link}: {e}")
+
                 build_reference_vectors()
                 st.success("✅ Đã tạo vector từ nguồn tham khảo!")
+
             else:
                 st.warning("⚠️ Không có proxy hợp lệ. Dừng tiến trình.")
         except Exception as e:
@@ -163,16 +168,13 @@ if "search_links" in st.session_state:
 
 # === LẤY CAPTION YOUTUBE ===
 from urllib.parse import urlparse, parse_qs
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, CouldNotRetrieveTranscript
 
 yt_url = st.text_input("Link YouTube")
 
 if st.button("🎬 Lấy caption") and yt_url:
     try:
-        # Lấy video ID từ link YouTube
         video_id = parse_qs(urlparse(yt_url).query).get("v", [""])[0]
-
-        # Lấy proxy từ TMProxy
         proxy_url = get_tmproxy_with_cache(tmproxy_api_key)
 
         if proxy_url:
@@ -180,12 +182,14 @@ if st.button("🎬 Lấy caption") and yt_url:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
             full_text = " ".join([x['text'] for x in transcript])
 
-            st.session_state.sources.append(f"[YOUTUBE] {full_text}")
+            st.session_state.sources.append(f"[YOUTUBE]\n{full_text.strip()}")
             build_reference_vectors()
             st.success("✅ Đã lấy caption từ YouTube qua TMProxy!")
         else:
             st.warning("⚠️ Không có proxy hợp lệ. Dừng tiến trình.")
 
+    except CouldNotRetrieveTranscript:
+        st.error("❌ Video không hỗ trợ phụ đề hoặc không thể lấy caption.")
     except Exception as e:
         st.error(f"❌ Lỗi lấy caption: {e}")
 
@@ -194,11 +198,16 @@ if st.button("🎬 Lấy caption") and yt_url:
 def build_reference_vectors():
     chunks = []
     for src in st.session_state.sources:
+        # Bỏ dòng đầu nếu chứa metadata
+        if src.startswith("[SOURCE:") or src.startswith("[YOUTUBE]"):
+            src = "\n".join(src.split("\n")[1:])
+
         paragraphs = src.split("\n")
         for p in paragraphs:
             p = p.strip()
-            if 100 < len(p) < 1000:
+            if len(p) > 100:
                 chunks.append(p)
+
     st.session_state.source_vectors = [
         (text, model_embed.encode(text, convert_to_tensor=False)) for text in chunks
     ]
