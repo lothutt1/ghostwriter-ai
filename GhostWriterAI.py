@@ -363,7 +363,7 @@ if st.session_state.structure_titles:
 
                     # Tạo prompt đầy đủ
                     prompt_parts = [
-                        "You are a writing assistant trained to match this personal narrative style and helping to write a multi-part YouTube script.",
+                        "You are a writing assistant trained to match this personal narrative style and helping to write a multi-part YouTube script. Begin with a thought-provoking question about {title} ",
                         "Each section should connect smoothly with the next and avoid summarizing or concluding the whole topic.",
                         "Your job is to write the next section in a vivid, immersive tone, continuing the story step by step.",
                         "Try not to begin with overused phrases like 'Imagine this' or 'Picture yourself.' Instead, lead the reader into the scene in a captivating and elegant way.",
