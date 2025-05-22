@@ -365,6 +365,7 @@ if st.session_state.structure_titles:
                     prompt_parts = [
                         "You are a writing assistant trained to match this personal narrative style and helping to write a multi-part YouTube script. Begin with a thought-provoking question about section title ",
                         "Each section should connect smoothly with the next and avoid summarizing or concluding the whole topic.",
+                        "Each section must contain: 1 mainstream historical fact, 1 quirky or fringe tidbit , 1 open scholarly debate phrase: Historians still argue whether …",
                         "Your job is to write the next section in a vivid, immersive tone, continuing the story step by step.",
                         "Try not to begin with overused phrases like 'Imagine this' or 'Picture yourself.' Instead, lead the reader into the scene in a captivating and elegant way.",
                         "Here are example paragraphs:\n" + "\n\n".join(examples),
